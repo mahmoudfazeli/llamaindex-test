@@ -131,8 +131,8 @@ def load_data(uploaded_files):
                 # Execute pipeline and time the process
                 times = []
                 for _ in range(3):
-                    #time.sleep(30)
-                    time.sleep(10)  # To prevent rate-limits/timeouts
+                    time.sleep(30)
+                    #time.sleep(10)  # To prevent rate-limits/timeouts
                     pipeline = build_pipeline()
                     start = time.time()
                     nodes = pipeline.run(documents=docs)  # Adjusted to synchronous call
