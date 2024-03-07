@@ -12,7 +12,8 @@ from llama_index import(
     VectorStoreIndex,
     ServiceContext,
     Document,
-    get_response_synthesizer
+    get_response_synthesizer,
+    StorageContext
 )
 from llama_index.llms import OpenAI
 from llama_index.embeddings import OpenAIEmbedding
@@ -56,43 +57,8 @@ embed_model = OpenAIEmbedding()
 client = qdrant_client.QdrantClient(location=":memory:")
 vector_store = QdrantVectorStore(client=client, collection_name="test_store")
 
+storage_context = StorageContext.from_defaults(vector_store=vector_store)
 
-def build_pipeline():
-    transformations = [
-        SentenceSplitter(
-            chunk_size=1024,
-            chunk_overlap=256
-            ),
-        TitleExtractor(
-            llm=llm,
-            metadata_mode=MetadataMode.EMBED,
-            num_workers=8
-        ),
-        SummaryExtractor(
-            llm=llm,
-            metadata_mode=MetadataMode.EMBED,
-            num_workers=8,
-            summaries=["prev", "self"]
-        ),
-        QuestionsAnsweredExtractor(
-            llm=llm,
-            metadata_mode=MetadataMode.EMBED,
-            num_workers=8,
-            questions=3
-            ),
-        KeywordExtractor(
-            llm=llm,
-            metadata_mode=MetadataMode.EMBED,
-            num_workers=8,
-            keywords=10
-            ),
-        #EntityExtractor(
-         #   prediction_threshold=0.5
-          #  ),
-        OpenAIEmbedding(),
-        ]
-
-    return IngestionPipeline(transformations=transformations, vector_store=vector_store)
 
 
 # Set the header of the Streamlit application
@@ -129,16 +95,8 @@ def load_data(uploaded_files):
             if docs:
                 service_context_for_indexing = ServiceContext.from_defaults(embed_model = embed_model)
                 # Execute pipeline and time the process
-                times = []
-                for _ in range(3):
-                    time.sleep(30)
-                    #time.sleep(10)  # To prevent rate-limits/timeouts
-                    pipeline = build_pipeline()
-                    start = time.time()
-                    nodes = pipeline.run(documents=docs)  # Adjusted to synchronous call
-                    end = time.time()
-                    times.append(end - start)
-                index = VectorStoreIndex.from_vector_store(vector_store)
+                index =  VectorStoreIndex.from_documents(docs,storage_context=storage_context)
+
                 return index
             else:
                 return None
@@ -155,11 +113,11 @@ if uploaded_files:
             llm=llm,
             embed_model=embed_model
             )
-        
+
         # configure retriever
         retriever = VectorIndexRetriever(
             index=index,
-            similarity_top_k=2,
+            similarity_top_k=5,
         )
 
         # configure response synthesizer
