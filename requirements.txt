@@ -1,6 +1,7 @@
-llama-index==0.10.26
-streamlit==1.32.2
-langchain==0.1.14
-llama-index-vector-stores-qdrant==0.1.5
-llama-index-postprocessor-cohere-rerank==0.1.4
-python-dotenv==1.0.1
+llama-index
+streamlit
+langchain
+langchain-community
+llama-index-vector-stores-qdrant
+llama-index-postprocessor-cohere-rerank
+python-dotenv

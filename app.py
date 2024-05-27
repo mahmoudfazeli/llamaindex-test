@@ -2,7 +2,6 @@ import streamlit as st
 from llama_index.core import (
     SimpleDirectoryReader,
     VectorStoreIndex,
-    ServiceContext,
     Document,
     get_response_synthesizer,
     StorageContext
@@ -25,7 +24,9 @@ from llama_index.core.langchain_helpers.agents import IndexToolConfig, LlamaInde
 #from llama_index.schema import MetadataMode
 from llama_index.vector_stores.qdrant import QdrantVectorStore
 from llama_index.postprocessor.cohere_rerank import CohereRerank
+from llama_parse import LlamaParse
 import qdrant_client
+from langchain_community.chat_message_histories import ChatMessageHistory
 from langchain.memory import ConversationBufferMemory
 import time
 import nest_asyncio
@@ -38,11 +39,26 @@ nest_asyncio.apply()
 
 load_dotenv()
 
-llm = OpenAI(
-    model="gpt-3.5-turbo",
+#llm = OpenAI(
+ #   model="gpt-3.5-turbo",
+ #   temperature=0.2
+#)
+
+gpt_4o = OpenAIMultiModal(
+    model="gpt-4o",
     temperature=0.2
-)
+    #max_new_tokens=1500
+    )
+
 embed_model = OpenAIEmbedding()
+
+parser = LlamaParse(
+    api_key=os.getenv("LLAMA_CLOUD_API_KEY"),
+    #result_type="markdown",  # "markdown" and "text" are available
+    result_type="text",
+    verbose=True,
+)
+file_extractor = {".pdf": parser}
 
 client = qdrant_client.QdrantClient(location=":memory:")
 vector_store = QdrantVectorStore(client=client, collection_name="test_store")
@@ -80,11 +96,13 @@ def load_data(uploaded_files):
                     with open(file_path, "wb") as f:
                         f.write(uploaded_file.getbuffer())
 
-            reader = SimpleDirectoryReader(input_dir=temp_dir, recursive=True)
+            reader = SimpleDirectoryReader(input_dir=temp_dir, file_extractor=file_extractor, recursive=True)
             docs = reader.load_data()
 
             if docs:
-                service_context_for_indexing = ServiceContext.from_defaults(embed_model=embed_model)
+                settings_for_indexing = {
+                    "embedding_model": embed_model
+                }
                 # Execute pipeline and time the process
                 index = VectorStoreIndex.from_documents(docs, storage_context=storage_context)
 
@@ -99,11 +117,11 @@ if uploaded_files:
     index = load_data(uploaded_files)
 
     if index:
-        # Set up the ServiceContext with the LLM for the querying stage
-        service_context_for_querying = ServiceContext.from_defaults(
-            llm=llm,
-            embed_model=embed_model
-        )
+        # Set up the Settings with the LLM for the querying stage
+        settings_for_querying = {
+            "llm": llm,
+            "embedding_model": embed_model
+        }
 
         # Configure retriever
         retriever = VectorIndexRetriever(
