@@ -1,0 +1,11 @@
+llama-index
+streamlit
+langchain
+langchain-community
+llama-index-vector-stores-qdrant
+llama-index-postprocessor-cohere-rerank
+python-dotenv
+fitz
+PyMuPDF
+sentence-transformers
+Pillow

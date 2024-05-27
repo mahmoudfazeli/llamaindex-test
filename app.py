@@ -7,6 +7,7 @@ from llama_index.core import (
     StorageContext
 )
 from llama_index.llms.openai import OpenAI
+from llama_index.multi_modal_llms.openai import OpenAIMultiModal
 from llama_index.embeddings.openai import OpenAIEmbedding
 
 from llama_index.core.retrievers import VectorIndexRetriever
@@ -44,7 +45,7 @@ load_dotenv()
  #   temperature=0.2
 #)
 
-gpt_4o = OpenAIMultiModal(
+llm = OpenAIMultiModal(
     model="gpt-4o",
     temperature=0.2
     #max_new_tokens=1500
