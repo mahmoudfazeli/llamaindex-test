@@ -1,6 +1,5 @@
-
 import streamlit as st
-from llama_index.core import(
+from llama_index.core import (
     SimpleDirectoryReader,
     VectorStoreIndex,
     ServiceContext,
@@ -39,10 +38,10 @@ nest_asyncio.apply()
 
 load_dotenv()
 
-llm=OpenAI(
+llm = OpenAI(
     model="gpt-3.5-turbo",
     temperature=0.2
-    )
+)
 embed_model = OpenAIEmbedding()
 
 client = qdrant_client.QdrantClient(location=":memory:")
@@ -54,26 +53,26 @@ cohere_api_key = os.getenv("COHERE_API_KEY")
 cohere_rerank = CohereRerank(api_key=cohere_api_key, top_n=2)
 
 # Set the header of the Streamlit application
-st.header("Workshop Transcript Chatbot")
+st.header("Document Chatbot")
 
 # Initialize session state to store the chat history
-if "messages" not in st.session_state.keys(): # Initialize the chat message history
+if "messages" not in st.session_state.keys():
     st.session_state.messages = [
-        {"role": "assistant", "content": "Ask me a question about DPS Workshops!"}
+        {"role": "assistant", "content": "Ask me a question about your documents!"}
     ]
 
 @st.cache_resource(show_spinner=False)
 def load_data(uploaded_files):
     """
-    Load and index workshop transcripts uploaded by the user.
+    Load and index PDF documents uploaded by the user.
 
     Args:
         uploaded_files: A list of uploaded file objects.
 
     Returns:
-        VectorStoreIndex: An indexed representation of the workshop transcripts.
+        VectorStoreIndex: An indexed representation of the documents.
     """
-    with st.spinner(text="Indexing uploaded workshop docs – hang tight! This might take some time."):
+    with st.spinner(text="Indexing uploaded documents – hang tight! This might take some time."):
         with tempfile.TemporaryDirectory() as temp_dir:
             for uploaded_file in uploaded_files:
                 if uploaded_file is not None:
@@ -85,16 +84,16 @@ def load_data(uploaded_files):
             docs = reader.load_data()
 
             if docs:
-                service_context_for_indexing = ServiceContext.from_defaults(embed_model = embed_model)
+                service_context_for_indexing = ServiceContext.from_defaults(embed_model=embed_model)
                 # Execute pipeline and time the process
-                index =  VectorStoreIndex.from_documents(docs,storage_context=storage_context)
+                index = VectorStoreIndex.from_documents(docs, storage_context=storage_context)
 
                 return index
             else:
                 return None
 
 # Streamlit file uploader
-uploaded_files = st.file_uploader("Upload workshop documents", accept_multiple_files=True)
+uploaded_files = st.file_uploader("Upload documents", accept_multiple_files=True, type=['pdf'])
 
 if uploaded_files:
     index = load_data(uploaded_files)
@@ -104,40 +103,39 @@ if uploaded_files:
         service_context_for_querying = ServiceContext.from_defaults(
             llm=llm,
             embed_model=embed_model
-            )
+        )
 
-        # configure retriever
+        # Configure retriever
         retriever = VectorIndexRetriever(
             index=index,
             similarity_top_k=5,
         )
 
-        # configure response synthesizer
+        # Configure response synthesizer
         response_synthesizer = get_response_synthesizer(
             response_mode="tree_summarize",
         )
 
-        # assemble query engine
+        # Assemble query engine
         query_engine = RetrieverQueryEngine(
             retriever=retriever,
             response_synthesizer=response_synthesizer,
-            node_postprocessors=[cohere_rerank])
-
+            node_postprocessors=[cohere_rerank]
+        )
 
         memory = ConversationBufferMemory(
             memory_key='chat_history', return_messages=True
-            )
-
+        )
 
         tool_config = IndexToolConfig(
             query_engine=query_engine,
             name=f"Vector Index",
-            description=f"useful for when you want to answer queries about the document",
+            description=f"useful for when you want to answer queries about the uploaded documents",
             tool_kwargs={"return_direct": True},
-            memory = memory
-            )
+            memory=memory
+        )
 
-        # create the tool
+        # Create the tool
         tool = LlamaIndexTool.from_tool_config(tool_config)
 
         # Chat interface for user input and displaying chat history
@@ -152,9 +150,7 @@ if uploaded_files:
             with st.chat_message("assistant"):
                 with st.spinner("Thinking..."):
                     # Retrieve the response from the chat engine based on the user's prompt
-                    response=tool.run(prompt)
-                    #st.write(response.response)
+                    response = tool.run(prompt)
                     st.write(response)
-                    #message = {"role": "assistant", "content": response.response}
                     message = {"role": "assistant", "content": response}
-                    st.session_state.messages.append(message) # Add response to message history
+                    st.session_state.messages.append(message)  # Add response to message history
