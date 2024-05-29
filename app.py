@@ -1,42 +1,44 @@
 import streamlit as st
 import logging
 from llama_index.core import (
-    SimpleDirectoryReader,
-    VectorStoreIndex,
-    get_response_synthesizer,
-    StorageContext
+     SimpleDirectoryReader,
+     VectorStoreIndex,
+     get_response_synthesizer,
+     StorageContext
 )
-from llama_index.llms.openai import OpenAI
+# from llama_index.llms.openai import OpenAI
 from llama_index.multi_modal_llms.openai import OpenAIMultiModal
 from llama_index.embeddings.openai import OpenAIEmbedding
 from llama_index.core.retrievers import VectorIndexRetriever
 from llama_index.core.query_engine import RetrieverQueryEngine
 from llama_index.core.langchain_helpers.agents import IndexToolConfig, LlamaIndexTool
-from llama_index.vector_stores.qdrant import QdrantVectorStore
 from llama_index.postprocessor.cohere_rerank import CohereRerank
 from llama_index.readers.youtube_transcript import YoutubeTranscriptReader
 from llama_index.readers.youtube_transcript.utils import is_youtube_video
-from llama_parse import LlamaParse
+from llama_index.vector_stores.qdrant import QdrantVectorStore
 import qdrant_client
 from qdrant_client.http.models import VectorParams, Distance
+from llama_parse import LlamaParse
+from sentence_transformers import SentenceTransformer
 from langchain_community.chat_message_histories import ChatMessageHistory
 from langchain.memory import ConversationBufferMemory
-import os
-from PIL import Image
 import fitz  # PyMuPDF
-from sentence_transformers import SentenceTransformer
-import nest_asyncio
-from dotenv import load_dotenv
-import uuid
-import numpy as np
+from PIL import Image
 from io import BytesIO
+import numpy as np
+import uuid
 import tempfile
+from dotenv import load_dotenv
+import os
+import nest_asyncio
 
 # TODO: Make RAG Agentic
 # TODO: Fix image retrieval
 # TODO: Integrate with Coaching AI Code
 # TODO: Fix memory issue
 # TODO: Modularize the code 
+# TODO: Check for cohere rerank and improve pipeline
+# TODO: Fix tokens issue
 
 # Setup logging
 #logging.basicConfig(level=logging.DEBUG)
