@@ -9,3 +9,5 @@ fitz
 PyMuPDF
 sentence-transformers
 Pillow
+llama-index-readers-youtube-transcript
+llama-index-agent-openai
