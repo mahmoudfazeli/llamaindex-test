@@ -3,8 +3,5 @@ llama-index==0.10.40
 llama-index-vector-stores-qdrant==0.2.8
 llama-index-postprocessor-cohere-rerank==0.1.6
 llama-index-readers-youtube-transcript==0.1.4
-langchain==0.2.1
-langchain-community==0.2.1
-sentence-transformers==3.0.0
 python-dotenv==1.0.1
 PyMuPDF==1.24.4
