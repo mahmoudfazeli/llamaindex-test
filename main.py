@@ -38,12 +38,52 @@ from langchain.text_splitter import RecursiveCharacterTextSplitter
 from qdrant_client import QdrantClient
 from langchain_community.vectorstores import Qdrant
 
+import requests
+import json
+
 # Setup logging
 #logging.basicConfig(level=logging.DEBUG)
 
 # Apply nest_asyncio
 nest_asyncio.apply()
 load_dotenv()
+
+# Define the DeepInfraEmbedder Class
+class DeepInfraEmbedder:
+    def __init__(self, api_key, model_name="sentence-transformers/all-mpnet-base-v2"):
+        self.api_key = api_key
+        self.url = 'https://api.deepinfra.com/v1/openai/embeddings'
+        self.model_name = model_name
+
+    def embed(self, text):
+        headers = {
+            'Content-Type': 'application/json',
+            'Authorization': f'Bearer {self.api_key}'
+        }
+        data = {
+            'input': text,
+            'model': self.model_name,
+            'encoding_format': 'float'
+        }
+        response = requests.post(self.url, headers=headers, data=json.dumps(data))
+        if response.status_code == 200:
+            return response.json()['data'][0]['embedding']
+        else:
+            raise Exception(f'Error: {response.status_code} - {response.text}')
+
+    def embed_documents(self, texts):
+        return [self.embed(text) for text in texts]
+
+# Define a Callable Wrapper
+class CallableDeepInfraEmbedder:
+    def __init__(self, embedder):
+        self.embedder = embedder
+
+    def __call__(self, text):
+        return self.embedder.embed(text)
+
+    def embed_documents(self, texts):
+        return self.embedder.embed_documents(texts)
 
 # Sidebar for app selection
 st.sidebar.title("Select App")
@@ -271,20 +311,16 @@ def coaching_ai():
             for text in texts:
                 text.metadata = {"audio_url": text.metadata["audio_url"]}
 
+            # Function to create the embedder instance
             def make_embedder():
-                model_name = "sentence-transformers/all-mpnet-base-v2"
-                model_kwargs = {'device': 'cpu'}
-                encode_kwargs = {'normalize_embeddings': False}
-                return HuggingFaceEmbeddings(
-                    model_name=model_name,
-                    model_kwargs=model_kwargs,
-                    encode_kwargs=encode_kwargs
-                )
-
-            hf = make_embedder()
+                api_key = os.getenv('DEEPINFRA_TOKEN')
+                embedder = DeepInfraEmbedder(api_key)
+                return CallableDeepInfraEmbedder(embedder)
+                
+            embedder = make_embedder()
 
             qdrant_client = QdrantClient()  
-            qdrant = Qdrant.from_documents(texts, hf, location=":memory:", collection_name="my_documents")
+            qdrant = Qdrant.from_documents(texts, embedder, location=":memory:", collection_name="my_documents")
 
             def make_qa_chain():
                 llm = ChatOpenAI(model_name="gpt-3.5-turbo", temperature=0, api_key=OPENAI_API_KEY)
