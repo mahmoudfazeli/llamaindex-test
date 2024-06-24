@@ -5,3 +5,9 @@ llama-index-postprocessor-cohere-rerank==0.1.6
 llama-index-readers-youtube-transcript==0.1.4
 python-dotenv==1.0.1
 PyMuPDF==1.24.4
+####
+langchain==0.2.0
+langchain-community==0.2.0
+llama-index-indices-managed-vectara==0.1.4
+assemblyai==0.26.0
+langchain-qdrant==0.1.1
