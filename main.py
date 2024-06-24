@@ -6,7 +6,6 @@ from llama_index.core import (
     get_response_synthesizer,
     StorageContext
 )
-# from llama_index.llms.openai import OpenAI
 from llama_index.multi_modal_llms.openai import OpenAIMultiModal
 from llama_index.embeddings.openai import OpenAIEmbedding
 from llama_index.core.retrievers import VectorIndexRetriever
@@ -18,7 +17,6 @@ from llama_index.vector_stores.qdrant import QdrantVectorStore
 import qdrant_client
 from qdrant_client.http.models import VectorParams, Distance, PointStruct
 from llama_parse import LlamaParse
-from sentence_transformers import SentenceTransformer
 import fitz  # PyMuPDF
 from PIL import Image
 from io import BytesIO
@@ -74,6 +72,40 @@ class DeepInfraEmbedder:
     def embed_documents(self, texts):
         return [self.embed(text) for text in texts]
 
+class DeepInfraImageEmbedder:
+    def __init__(self, api_key):
+        self.api_key = api_key
+        self.url = 'https://api.deepinfra.com/v1/inference/sentence-transformers/clip-ViT-B-32'
+
+    def embed_image(self, image_base64):
+        headers = {
+            'Content-Type': 'application/json',
+            'Authorization': f'Bearer {self.api_key}'
+        }
+        data = {
+            'inputs': [f"data:image/png;base64,{image_base64}"],
+            'normalize': False
+        }
+        logging.info("Sending request to DeepInfra API")
+        try:
+            response = requests.post(self.url, headers=headers, json=data)
+            logging.info(f"Received response status code: {response.status_code}")
+
+            if response.status_code == 200:
+                response_json = response.json()
+                logging.info(f"Response JSON: {response_json}")
+                embeddings = response_json.get('embeddings', [])
+                if not embeddings:
+                    raise ValueError("Embeddings not found in response")
+                logging.info(f"Received embeddings: {embeddings}")
+                return embeddings[0]
+            else:
+                logging.error(f"DeepInfra API Error: {response.status_code} - {response.text}")
+                raise Exception(f'Error: {response.status_code} - {response.text}')
+        except Exception as e:
+            logging.error(f"Failed to get embeddings from DeepInfra API: {e}")
+            raise
+
 # Define a Callable Wrapper
 class CallableDeepInfraEmbedder:
     def __init__(self, embedder):
@@ -95,7 +127,10 @@ def document_chatbot():
     # Initialize models and clients
     llm = OpenAIMultiModal(model="gpt-4o", temperature=0.2)
     embed_model = OpenAIEmbedding()
-    image_embedding_model = SentenceTransformer("clip-ViT-B-32")
+
+    # Initialize DeepInfraImageEmbedder for image embeddings
+    deepinfra_api_key = os.getenv("DEEPINFRA_TOKEN")
+    image_embedding_model = DeepInfraImageEmbedder(api_key=deepinfra_api_key)
 
     # Initialize the parser for PDF files
     parser = LlamaParse(api_key=os.getenv("LLAMA_CLOUD_API_KEY"), result_type="text", verbose=True)
@@ -180,16 +215,24 @@ def document_chatbot():
                 }
                 logging.info(f"Stored image: {image_key}")
 
-                point = PointStruct(
-                    id=str(uuid.uuid4()),
-                    vector=[0.0] * 1536, 
-                    payload={
-                        "type": "image",
-                        "key": image_key,
-                        "metadata": st.session_state.image_store[image_key]["metadata"]
-                    }
-                )
-                client.upsert(collection_name=collection_name, points=[point])
+                # Use DeepInfra to get the image embedding
+                try:
+                    logging.info(f"Requesting embedding for image: {image_key}")
+                    embedding = image_embedding_model.embed_image(image_base64)
+                    logging.info(f"Received embedding for image: {image_key}")
+                    point = PointStruct(
+                        id=str(uuid.uuid4()),
+                        vector=embedding,
+                        payload={
+                            "type": "image",
+                            "key": image_key,
+                            "metadata": st.session_state.image_store[image_key]["metadata"]
+                        }
+                    )
+                    client.upsert(collection_name=collection_name, points=[point])
+                    logging.info(f"Stored embedding for image: {image_key}")
+                except Exception as e:
+                    logging.error(f"Failed to store embedding for image {image_key}: {e}")
                 image_keys.append(image_key)
                 st.session_state.image_keys.append(image_key)
         
@@ -212,6 +255,7 @@ def document_chatbot():
 
     if st.session_state.index:
         for uploaded_file in uploaded_files:
+            logging.info(f"Processing uploaded file: {uploaded_file.name}")
             pdf_path = os.path.join(tempfile.gettempdir(), uploaded_file.name)
             with open(pdf_path, "wb") as f:
                 f.write(uploaded_file.getbuffer())
