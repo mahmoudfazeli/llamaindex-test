@@ -18,7 +18,7 @@ from llama_index.vector_stores.qdrant import QdrantVectorStore
 import qdrant_client
 from qdrant_client.http.models import VectorParams, Distance, PointStruct
 from llama_parse import LlamaParse
-#from sentence_transformers import SentenceTransformer
+from sentence_transformers import SentenceTransformer
 import fitz  # PyMuPDF
 from PIL import Image
 from io import BytesIO
