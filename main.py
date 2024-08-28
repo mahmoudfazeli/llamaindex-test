@@ -1,3 +1,22 @@
+import os
+import tempfile
+import nltk
+
+# Set up a custom NLTK data path
+nltk_data_dir = os.path.join(tempfile.gettempdir(), "nltk_data")
+os.makedirs(nltk_data_dir, exist_ok=True)
+nltk.data.path.append(nltk_data_dir)
+
+try:
+    nltk.data.find("tokenizers/punkt")
+except LookupError:
+    nltk.download("punkt", download_dir=nltk_data_dir)
+    
+try:
+    nltk.data.find("corpora/stopwords")
+except LookupError:
+    nltk.download("stopwords", download_dir=nltk_data_dir)
+
 import streamlit as st
 import logging
 from llama_index.core import (
@@ -24,7 +43,7 @@ import numpy as np
 import uuid
 import tempfile
 from dotenv import load_dotenv
-import os
+# import os
 import nest_asyncio
 import base64
 
